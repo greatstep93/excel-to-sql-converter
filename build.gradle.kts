@@ -41,9 +41,9 @@ dependencies {
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
-    implementation("com.github.javafaker:javafaker:1.0.2") {
-        exclude(group = "org.yaml", module = "snakeyaml")
-    }
+//    implementation("com.github.javafaker:javafaker:1.0.2") {
+//        exclude(group = "org.yaml", module = "snakeyaml")
+//    }
 
     //TEST
     testImplementation("org.springframework.boot:spring-boot-starter-test")

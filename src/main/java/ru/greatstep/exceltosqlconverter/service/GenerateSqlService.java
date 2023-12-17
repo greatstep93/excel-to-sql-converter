@@ -147,7 +147,7 @@ public class GenerateSqlService {
         }
 
         if (entry.getValue().equals("RANDOM_MIDDLE_NAME")) {
-            return toVarchar(fakeName.middleName());
+            return toVarchar(fakeName.fatherName());
         }
 
         if (entry.getValue().equals("null")) {
@@ -206,9 +206,7 @@ public class GenerateSqlService {
     private void checkNullValuesFromColumns(List<Map<String, String>> objects, Set<String> insertColumnNames) {
         objects.forEach(map -> {
             if (map.keySet().size() < insertColumnNames.size()) {
-                insertColumnNames.forEach(column -> {
-                    map.putIfAbsent(column, "null");
-                });
+                insertColumnNames.forEach(column -> map.putIfAbsent(column, "null"));
             }
         });
     }
