@@ -4,14 +4,14 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.springframework.http.HttpStatusCode;
-import ru.greatstep.exceltosqlconverter.models.FacadeErrorResponse;
+import ru.greatstep.exceltosqlconverter.models.ErrorResponse;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
-public class FacadeWebClientException extends RuntimeException {
+public class WebClientException extends RuntimeException {
 
-    private final FacadeErrorResponse body;
+    private final ErrorResponse body;
     private final HttpStatusCode httpStatus;
 
 }

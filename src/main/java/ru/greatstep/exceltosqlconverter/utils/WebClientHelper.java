@@ -29,8 +29,8 @@ import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.DefaultUriBuilderFactory.EncodingMode;
 import org.springframework.web.util.UriBuilder;
 import reactor.core.publisher.Mono;
-import ru.greatstep.exceltosqlconverter.exception.FacadeWebClientException;
-import ru.greatstep.exceltosqlconverter.models.FacadeErrorResponse;
+import ru.greatstep.exceltosqlconverter.exception.WebClientException;
+import ru.greatstep.exceltosqlconverter.models.ErrorResponse;
 
 @Component
 @RequiredArgsConstructor
@@ -94,10 +94,10 @@ public class WebClientHelper {
                                         URLEncoder.encode(e.getValue().toString(), StandardCharsets.UTF_8)))))).build();
     }
 
-    public Mono<FacadeWebClientException> createFacadeWebClientException(ClientResponse clientResponse) {
-        return clientResponse.toEntity(FacadeErrorResponse.class)
+    public Mono<WebClientException> createFacadeWebClientException(ClientResponse clientResponse) {
+        return clientResponse.toEntity(ErrorResponse.class)
                 .map(responseEntity ->
-                        new FacadeWebClientException(responseEntity.getBody(), responseEntity.getStatusCode()));
+                        new WebClientException(responseEntity.getBody(), responseEntity.getStatusCode()));
     }
 
 }

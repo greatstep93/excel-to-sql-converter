@@ -6,13 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ErrorResponse {
 
+    private String error;
     private String message;
-    private String responseCode;
     private String stackTrace;
-    private String status;
+
 }

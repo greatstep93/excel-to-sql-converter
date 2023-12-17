@@ -1,4 +1,4 @@
-package ru.greatstep.exceltosqlconverter.service;
+package ru.greatstep.exceltosqlconverter.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -14,11 +14,12 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
+import ru.greatstep.exceltosqlconverter.service.RandomNameService;
 import ru.greatstep.exceltosqlconverter.utils.WebClientHelper;
 
 @Service
 @RequiredArgsConstructor
-public class RandomNamesService {
+public class RandomNamesServiceImpl implements RandomNameService {
 
     private final WebClientHelper webClientHelper;
     private final ObjectMapper objectMapper;
@@ -29,7 +30,7 @@ public class RandomNamesService {
 
     private static final Integer MAX_COUNT = 100;
 
-    @SneakyThrows
+    @Override
     public List<FakeName> getFakeNames(Integer count) {
         count = count == null ? 1 : count;
         if (count <= MAX_COUNT) {
@@ -45,12 +46,12 @@ public class RandomNamesService {
         }
     }
 
-    @SneakyThrows
     private List<FakeName> getFakeNamesFromApi(Integer count) {
         return count == 1 ? getSingletonFake() : getListFake(count);
     }
 
-    private List<FakeName> getSingletonFake() throws JsonProcessingException {
+    @SneakyThrows(JsonProcessingException.class)
+    private List<FakeName> getSingletonFake() {
         var response = webClientHelper.getRequest(
                 host,
                 getParamsWithoutCount(),
@@ -60,7 +61,8 @@ public class RandomNamesService {
         return List.of(fakeName);
     }
 
-    private List<FakeName> getListFake(Integer count) throws JsonProcessingException {
+    @SneakyThrows(JsonProcessingException.class)
+    private List<FakeName> getListFake(Integer count) {
         var response = Optional.ofNullable(
                         webClientHelper.getRequest(
                                         host,
