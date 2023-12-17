@@ -5,7 +5,7 @@ import java.util.Map;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
-public interface GenerateSqlService {
+public interface SqlService {
 
     void generateSql(List<Map<String, String>> objects, MultipartFile multipartFile);
 

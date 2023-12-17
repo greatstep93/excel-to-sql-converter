@@ -6,11 +6,34 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 import static org.apache.commons.lang3.StringUtils.substringAfter;
 import static org.apache.commons.lang3.StringUtils.substringBefore;
 import static org.apache.commons.lang3.StringUtils.substringBetween;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.DATE;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.ENUM;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.FKEY;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.IN_BRACKET;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.IS_NUMBER;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.NUMBER;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.OUT_BRACKET;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.POINT;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.REFERENCE_COLUMN;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.SEARCH_COLUMN;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.SEARCH_IS_NUMBER;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.SEMICOLON;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.TIMESTAMP;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.TYPE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FIRST_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FULL_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_LAST_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_MIDDLE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.INSERT_PATTERN;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.SUB_SELECT_NUMBER_TEMPLATE;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.SUB_SELECT_TEMPLATE;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.VALUE_PATTERN;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,22 +53,18 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
-import ru.greatstep.exceltosqlconverter.service.GenerateSqlService;
+import ru.greatstep.exceltosqlconverter.service.RandomService;
+import ru.greatstep.exceltosqlconverter.service.SqlService;
+import ru.greatstep.exceltosqlconverter.utils.Constants.PostgresFunc;
+import ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues;
 
 @Service
 @RequiredArgsConstructor
-public class GenerateSqlServiceImpl implements GenerateSqlService {
+public class SqlServiceImpl implements SqlService {
 
-    private final RandomNamesServiceImpl randomNamesServiceImpl;
-    private static final String INSERT_PATTERN = "INSERT INTO %s ( %s )\nVALUES\n";
-    private static final String VALUE_PATTERN = "(%s),\n";
-    private static final List<String> POSTGRES_FUNC = List.of("current_timestamp", "current_date", "current_time");
-    private static final String SUB_SELECT_TEMPLATE = "(SELECT %s FROM %s WHERE %s = '%s')";
-    private static final String SUB_SELECT_NUMBER_TEMPLATE = "(SELECT %s FROM %s WHERE %s = %s)";
+    private final RandomService randomService;
     public static final String DATE_FORMAT = "yyyy-MM-dd";
     private static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
-    private static final String REFERENCE_COLUMN = "[reference_column=";
-    private static final String SEARCH_COLUMN = "search_column=";
 
     @SneakyThrows(IOException.class)
     public void generateSql(List<Map<String, String>> objects, MultipartFile multipartFile) {
@@ -87,7 +106,7 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
     }
 
     private Resource returnFile(StringBuilder sb) {
-        return new ByteArrayResource(sb.toString().getBytes());
+        return new ByteArrayResource(sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     private void addValuesFromSb(List<String> values, StringBuilder sb) {
@@ -106,7 +125,9 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
     private List<String> getValues(List<Map<String, String>> objects) {
         var sorted = objects.stream().sorted(Comparator.comparing(Map::size, Comparator.reverseOrder())).toList();
         int randomNameCount = sorted.stream().filter(this::containRandomName).mapToInt(e -> 1).sum();
-        var fakeNames = randomNamesServiceImpl.getFakeNames(randomNameCount);
+        List<FakeName> fakeNames = randomNameCount != 0
+                ? randomService.getFakeNames(randomNameCount)
+                : new ArrayList<>();
         List<String> values = new ArrayList<>();
         for (int i = 0, j = 0; i < objects.size(); i++) {
             if (containRandomName(sorted.get(i))) {
@@ -121,11 +142,12 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
     }
 
     private boolean containRandomName(Map<String, String> map) {
-        return map.containsValue("RANDOM_FULL_NAME") || map.containsValue("RANDOM_FIRST_NAME")
-                || map.containsValue("RANDOM_LAST_NAME") || map.containsValue("RANDOM_MIDDLE_NAME");
+        return map.containsValue(RANDOM_FULL_NAME) || map.containsValue(RANDOM_FIRST_NAME)
+                || map.containsValue(RANDOM_LAST_NAME) || map.containsValue(RANDOM_MIDDLE_NAME);
     }
 
     private String generateValues(Map<String, String> map, FakeName fakeName) {
+        quoteChecker(map);
         var resultValues = map.entrySet().stream()
                 .map(entry -> generateValue(entry, fakeName))
                 .toList();
@@ -133,73 +155,67 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
     }
 
     private String generateValue(Map.Entry<String, String> entry, FakeName fakeName) {
-        if (POSTGRES_FUNC.contains(entry.getValue()) || entry.getKey().endsWith("[number]")) {
-            return entry.getValue();
-        }
-
-        if (entry.getValue().equals("RANDOM_FULL_NAME")) {
-            return toVarchar(fakeName.fullName());
-        }
-
-        if (entry.getValue().equals("RANDOM_FIRST_NAME")) {
-            return toVarchar(fakeName.firstName());
-        }
-
-        if (entry.getValue().equals("RANDOM_LAST_NAME")) {
-            return toVarchar(fakeName.lastName());
-        }
-
-        if (entry.getValue().equals("RANDOM_MIDDLE_NAME")) {
-            return toVarchar(fakeName.fatherName());
-        }
-
         if (entry.getValue().equals("null")) {
             return null;
         }
 
-        if (entry.getKey().endsWith("[date]")) {
+        if (PostgresFunc.getAll().contains(entry.getValue()) || entry.getKey().endsWith(NUMBER)) {
+            return entry.getValue();
+        }
+
+        if (SpecialValues.getAll().contains(entry.getValue())) {
+            return generateVarcharFake(entry, fakeName);
+        }
+
+        return generateFromKeys(entry);
+    }
+
+    private String generateFromKeys(Map.Entry<String, String> entry) {
+        if (entry.getKey().endsWith(DATE)) {
             return toVarchar(parse(entry.getValue(), ofPattern(DATE_FORMAT)).toString());
         }
 
-        if (entry.getKey().endsWith("[timestamp]")) {
+        if (entry.getKey().endsWith(TIMESTAMP)) {
             return toVarchar(LocalDateTime.parse(entry.getValue(), ofPattern(DATE_TIME_FORMAT))
                     .toString());
         }
 
-        if (entry.getKey().contains("[enum]")) {
-            var enumTable = substringBetween(entry.getValue(), "[enum=", "]");
-            return toVarchar(entry.getValue()) + "::" + enumTable;
+        if (entry.getKey().contains(ENUM)) {
+            return entry.getValue().contains(IS_NUMBER)
+                    ? entry.getValue() + "::" + substringBetween(entry.getValue(), TYPE_NAME, OUT_BRACKET)
+                    : toVarchar(entry.getValue()) + "::" + substringBetween(entry.getValue(), TYPE_NAME, SEMICOLON);
         }
 
-        if (entry.getKey().contains("[fkey]") && !entry.getKey().contains("[number]")) {
-            var reference = substringBetween(entry.getKey(), "[fkey_", "]");
-            var schemaName = substringBefore(reference, ".");
-            var tableName = substringBetween(reference, schemaName + ".", ".");
-            var referenceColumnName = substringAfter(reference, tableName + ".");
-            var schemaTable = substringBefore(reference, "." + referenceColumnName);
-            return format(SUB_SELECT_TEMPLATE,
-                    referenceColumnName,
-                    schemaTable,
-                    reference,
-                    toVarchar(entry.getValue()));
-        }
+        if (entry.getKey().contains(FKEY)) {
+            boolean searchIsNumber = entry.getKey().contains(SEARCH_IS_NUMBER);
+            var reference = substringBetween(entry.getKey(), REFERENCE_COLUMN, SEMICOLON);
+            var schema = substringBefore(reference, POINT);
+            var table = substringBetween(reference, schema + POINT, POINT);
+            var schemaTable = schemaTable(schema, table);
+            var column = substringAfter(reference, table + POINT);
+            var search = searchIsNumber
+                    ? substringBetween(entry.getKey(), SEARCH_COLUMN, SEMICOLON)
+                    : substringBetween(entry.getKey(), SEARCH_COLUMN, OUT_BRACKET);
 
-        if (entry.getKey().contains(REFERENCE_COLUMN) && entry.getKey()
-                .contains(SEARCH_COLUMN)) {
-            var reference = substringBetween(entry.getKey(), REFERENCE_COLUMN, "]");
-            var schemaName = substringBefore(reference, ".");
-            var tableName = substringBetween(reference, schemaName + ".", ".");
-            var referenceColumnName = substringAfter(reference, tableName + ".");
-            var schemaTable = substringBefore(reference, "." + referenceColumnName);
-            var searchColumn = substringBetween(entry.getKey(), SEARCH_COLUMN, "]");
-            return format(SUB_SELECT_TEMPLATE,
-                    reference,
-                    schemaTable,
-                    schemaTable + "." + searchColumn,
-                    entry.getValue());
+            return searchIsNumber
+                    ? format(SUB_SELECT_NUMBER_TEMPLATE, column, schemaTable, search, entry.getValue())
+                    : format(SUB_SELECT_TEMPLATE, column, schemaTable, search, entry.getValue());
         }
-
         return toVarchar(entry.getValue());
+    }
+
+    private String generateVarcharFake(Map.Entry<String, String> entry, FakeName fakeName) {
+        return switch (entry.getValue()) {
+            case RANDOM_FULL_NAME -> toVarchar(fakeName.fullName());
+            case RANDOM_FIRST_NAME -> toVarchar(fakeName.firstName());
+            case RANDOM_MIDDLE_NAME -> toVarchar(fakeName.fatherName());
+            case RANDOM_LAST_NAME -> toVarchar(fakeName.lastName());
+            default -> "unknown random key";
+        };
+    }
+
+    private String schemaTable(String schema, String table) {
+        return schema + POINT + table;
     }
 
     private String toVarchar(String string) {
@@ -223,7 +239,7 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
             throw new RuntimeException("Empty column names");
         }
         return insertColumnNames.stream()
-                .map(c -> c.contains("[") ? StringUtils.substringBefore(c, "[") : c)
+                .map(c -> c.contains(IN_BRACKET) ? StringUtils.substringBefore(c, IN_BRACKET) : c)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -236,6 +252,10 @@ public class GenerateSqlServiceImpl implements GenerateSqlService {
         return sheet != null
                 ? sheet.getName()
                 : null;
+    }
+
+    private void quoteChecker(Map<String, String> map) {
+        map.replaceAll((k, v) -> v.contains("'") ? v.replaceAll("'", "''") : v);
     }
 
 }

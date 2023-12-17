@@ -1,6 +1,6 @@
 package ru.greatstep.exceltosqlconverter.service.impl;
 
-import static ru.greatstep.exceltosqlconverter.service.impl.GenerateSqlServiceImpl.DATE_FORMAT;
+import static ru.greatstep.exceltosqlconverter.service.impl.SqlServiceImpl.DATE_FORMAT;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,23 +25,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import ru.greatstep.exceltosqlconverter.exception.FormatsNotFoundException;
 import ru.greatstep.exceltosqlconverter.service.ExcelService;
+import ru.greatstep.exceltosqlconverter.service.SqlService;
 
 @Service
 @RequiredArgsConstructor
 public class ExcelServiceImpl implements ExcelService {
 
     private final ObjectMapper objectMapper;
-    private final GenerateSqlServiceImpl generateSqlServiceImpl;
+    private final SqlService sqlService;
 
     @Override
     public JsonNode excelToSqlSaveFile(MultipartFile multipartFile) {
-        generateSqlServiceImpl.generateSql(sheetProcess(multipartFile), multipartFile);
+        sqlService.generateSql(sheetProcess(multipartFile), multipartFile);
         return objectMapper.valueToTree(sheetProcess(multipartFile));
     }
 
     @Override
     public Resource excelToSql(MultipartFile multipartFile) {
-        return generateSqlServiceImpl.generateSqlAndReturn(sheetProcess(multipartFile), multipartFile);
+        return sqlService.generateSqlAndReturn(sheetProcess(multipartFile), multipartFile);
     }
 
     //Sheet - Лист

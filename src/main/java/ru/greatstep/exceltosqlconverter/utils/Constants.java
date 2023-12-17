@@ -6,27 +6,52 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class Constants {
 
+    public static final String ERROR_DELIMITER = " and ";
+
     public static class HeaderColumnConstants {
 
-        public static final String NUMBER = "[number";
-        public static final String DATE = "[date";
-        public static final String TIMESTAMP = "[timestamp";
+        public static final String NUMBER = "[number]";
+        public static final String DATE = "[date]";
+        public static final String TIMESTAMP = "[timestamp]";
         public static final String ENUM = "[enum:";
         public static final String FKEY = "[fkey:";
-        public static final String TABLE_NAME = "table_name=";
-        public static final String IS_NUMBER = "is_number=";
+        public static final String TYPE_NAME = "type_name=";
+        public static final String IS_NUMBER = "is_number";
         public static final String REFERENCE_COLUMN = "reference_column=";
         public static final String SEARCH_COLUMN = "search_column=";
-        public static final String SEARCH_IS_NUMBER = "search_is_number=";
+        public static final String SEARCH_IS_NUMBER = "search_is_number";
         public static final String OUT_BRACKET = "]";
+        public static final String IN_BRACKET = "[";
         public static final String SEMICOLON = ";";
+        public static final String POINT = ".";
+
+    }
+
+    public static class PostgresFunc {
+
+        public static final String CURRENT_DATE = "current_date";
+        public static final String CURRENT_TIMESTAMP = "current_timestamp";
+
+        public static List<String> getAll() {
+            return List.of(
+                    CURRENT_DATE,
+                    CURRENT_TIMESTAMP
+            );
+        }
+
+    }
+
+    public static class SqlPatterns {
+
+        public static final String INSERT_PATTERN = "INSERT INTO %s ( %s )\nVALUES\n";
+        public static final String VALUE_PATTERN = "(%s),\n";
+        public static final String SUB_SELECT_TEMPLATE = "(SELECT %s FROM %s WHERE %s = '%s')";
+        public static final String SUB_SELECT_NUMBER_TEMPLATE = "(SELECT %s FROM %s WHERE %s = %s)";
 
     }
 
     public static class SpecialValues {
 
-        public static final String CURRENT_DATE = "current_date";
-        public static final String CURRENT_TIMESTAMP = "current_timestamp";
         public static final String RANDOM_FULL_NAME = "random_full_name";
         public static final String RANDOM_FIRST_NAME = "random_first_name";
         public static final String RANDOM_MIDDLE_NAME = "random_middle_name";
@@ -46,11 +71,13 @@ public class Constants {
         public static final String RANDOM_HOUSE = "random_house";
         public static final String RANDOM_APARTMENT = "random_apartment";
 
-        public List<String> getAll() {
-            return List.of(CURRENT_DATE, CURRENT_TIMESTAMP, RANDOM_FULL_NAME, RANDOM_FIRST_NAME, RANDOM_MIDDLE_NAME,
-                    RANDOM_LAST_NAME, RANDOM_PHONE, RANDOM_LOGIN, RANDOM_EMAIL, RANDOM_DATE_OF_BIRTH, RANDOM_PASSPORT,
-                    RANDOM_PASSPORT_NUMBER, RANDOM_PASSPORT_SERIAL, RANDOM_FULL_ADDRESS, RANDOM_COUNTRY, RANDOM_REGION,
-                    RANDOM_CITY, RANDOM_STREET, RANDOM_HOUSE, RANDOM_APARTMENT);
+        public static List<String> getAll() {
+            return List.of(
+                    RANDOM_FULL_NAME,
+                    RANDOM_FIRST_NAME,
+                    RANDOM_MIDDLE_NAME,
+                    RANDOM_LAST_NAME
+            );
         }
 
     }

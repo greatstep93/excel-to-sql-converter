@@ -14,12 +14,12 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
-import ru.greatstep.exceltosqlconverter.service.RandomNameService;
+import ru.greatstep.exceltosqlconverter.service.RandomService;
 import ru.greatstep.exceltosqlconverter.utils.WebClientHelper;
 
 @Service
 @RequiredArgsConstructor
-public class RandomNamesServiceImpl implements RandomNameService {
+public class RandomServiceImpl implements RandomService {
 
     private final WebClientHelper webClientHelper;
     private final ObjectMapper objectMapper;
@@ -32,7 +32,7 @@ public class RandomNamesServiceImpl implements RandomNameService {
 
     @Override
     public List<FakeName> getFakeNames(Integer count) {
-        count = count == null ? 1 : count;
+        count = count == null || count == 0 ? 1 : count;
         if (count <= MAX_COUNT) {
             return getFakeNamesFromApi(count);
         } else {
@@ -52,30 +52,24 @@ public class RandomNamesServiceImpl implements RandomNameService {
 
     @SneakyThrows(JsonProcessingException.class)
     private List<FakeName> getSingletonFake() {
-        var response = webClientHelper.getRequest(
-                host,
-                getParamsWithoutCount(),
-                JsonNode.class
-        ).block();
+        var response = getFake(JsonNode.class, getParamsWithoutCount());
         var fakeName = objectMapper.treeToValue(response, FakeName.class);
         return List.of(fakeName);
     }
 
     @SneakyThrows(JsonProcessingException.class)
     private List<FakeName> getListFake(Integer count) {
-        var response = Optional.ofNullable(
-                        webClientHelper.getRequest(
-                                        host,
-                                        getParams(count),
-                                        ArrayNode.class)
-                                .block())
-                .orElseThrow();
+        var response = Optional.ofNullable(getFake(ArrayNode.class, getParams(count))).orElseThrow();
         Iterator<JsonNode> itr = response.elements();
         List<FakeName> FakeNames = new ArrayList<>();
         while (itr.hasNext()) {
             FakeNames.add(objectMapper.treeToValue(itr.next(), FakeName.class));
         }
         return FakeNames;
+    }
+
+    private <T> T getFake(Class<T> respClass, Map<String, Object> params) {
+        return webClientHelper.getRequest(host, params, respClass).block();
     }
 
     private Map<String, Object> getParamsWithoutCount() {

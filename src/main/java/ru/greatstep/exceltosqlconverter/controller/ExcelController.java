@@ -11,29 +11,31 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
-import ru.greatstep.exceltosqlconverter.service.impl.ExcelServiceImpl;
-import ru.greatstep.exceltosqlconverter.service.impl.RandomNamesServiceImpl;
+import ru.greatstep.exceltosqlconverter.service.ExcelService;
+import ru.greatstep.exceltosqlconverter.service.RandomService;
 
 @RestController
 @RequiredArgsConstructor
 public class ExcelController {
 
-    private final ExcelServiceImpl excelServiceImpl;
-    private final RandomNamesServiceImpl randomNamesServiceImpl;
+    private final ExcelService excelService;
+    private final RandomService randomNamesService;
 
-    @PostMapping(value = "/test", consumes = {"multipart/form-data"})
-    public JsonNode test(@RequestParam("file") MultipartFile file) {
-        return excelServiceImpl.excelToSqlSaveFile(file);
+    @PostMapping(value = "/saveFile", consumes = {"multipart/form-data"})
+    public JsonNode saveFile(@RequestParam("file") MultipartFile file) {
+        return excelService.excelToSqlSaveFile(file);
     }
 
-    @PostMapping(value = "/test2", consumes = {"multipart/form-data"}, produces = {"application/x-sql"})
-    public ResponseEntity<Resource> test2(@RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(excelServiceImpl.excelToSql(file));
+    @PostMapping(value = "/getSqlFromExcel", consumes = {"multipart/form-data"}, produces = {"application/x-sql"})
+    public ResponseEntity<Resource> getSqlFromExcel(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/x-sql; charset=utf-8")
+                .body(excelService.excelToSql(file));
     }
 
-    @GetMapping(value = "/testFakeNames")
-    public List<FakeName> testFakeNames(@RequestParam(value = "count", required = false) Integer count) {
-        var result = randomNamesServiceImpl.getFakeNames(count);
+    @GetMapping(value = "/getFakeNames")
+    public List<FakeName> getFakeNames(@RequestParam(value = "count", required = false) Integer count) {
+        var result = randomNamesService.getFakeNames(count);
         System.out.println(result.stream().distinct().toList().size());
         return result;
     }
