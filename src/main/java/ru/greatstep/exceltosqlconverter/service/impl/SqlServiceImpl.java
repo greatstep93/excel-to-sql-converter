@@ -24,6 +24,7 @@ import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RAN
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FULL_NAME;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_LAST_NAME;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_MIDDLE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.DO_END_TEMPLATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.INSERT_PATTERN;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.SUB_SELECT_NUMBER_TEMPLATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.SUB_SELECT_TEMPLATE;
@@ -52,8 +53,9 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import ru.greatstep.exceltosqlconverter.models.ExcelContext;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
-import ru.greatstep.exceltosqlconverter.service.RandomService;
+import ru.greatstep.exceltosqlconverter.service.DataRandomIntegrationService;
 import ru.greatstep.exceltosqlconverter.service.SqlService;
 import ru.greatstep.exceltosqlconverter.utils.Constants.PostgresFunc;
 import ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues;
@@ -62,39 +64,38 @@ import ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues;
 @RequiredArgsConstructor
 public class SqlServiceImpl implements SqlService {
 
-    private final RandomService randomService;
+    private final DataRandomIntegrationService dataRandomIntegrationService;
     public static final String DATE_FORMAT = "yyyy-MM-dd";
     private static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
+    public void generateSql(ExcelContext context, MultipartFile multipartFile) {
+        saveFile(sqlProcess(context, multipartFile));
+    }
+
+    public Resource generateSqlAndReturn(ExcelContext context, MultipartFile multipartFile) {
+        return returnFile(sqlProcess(context, multipartFile));
+    }
+
     @SneakyThrows(IOException.class)
-    public void generateSql(List<Map<String, String>> objects, MultipartFile multipartFile) {
+    private String sqlProcess(ExcelContext context, MultipartFile multipartFile) {
+        var objects = context.getRows();
         StringBuilder sb = new StringBuilder();
         var insertColumnNames = getInsertColumnNames(objects);
 
         checkNullValuesFromColumns(objects, insertColumnNames);
         sb.append(format(INSERT_PATTERN, getTableName(multipartFile), String.join(", ", insertColumnNames)));
         addValuesFromSb(getValues(objects), sb);
-        saveFile(sb);
+        return format(DO_END_TEMPLATE, sb);
     }
 
     @SneakyThrows(IOException.class)
-    public Resource generateSqlAndReturn(List<Map<String, String>> objects, MultipartFile multipartFile) {
-        StringBuilder sb = new StringBuilder();
-        var insertColumnNames = getInsertColumnNames(objects);
-
-        checkNullValuesFromColumns(objects, insertColumnNames);
-        sb.append(format(INSERT_PATTERN, getTableName(multipartFile), String.join(", ", insertColumnNames)));
-        addValuesFromSb(getValues(objects), sb);
-        return returnFile(sb);
-    }
-
-    private void saveFile(StringBuilder sb) throws IOException {
+    private void saveFile(String sql) {
         String filePostfix = LocalDateTime.now().format(ofPattern("yyyy-MM-dd'T'HH_mm_ss"));
         File file = new File("src/main/resources/sql/test_" + filePostfix + ".sql");
         var success = file.createNewFile();
         if (success) {
             try (var fos = new FileOutputStream(file, false)) {
-                fos.write(sb.toString().getBytes());
+                fos.write(sql.getBytes());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -102,11 +103,11 @@ public class SqlServiceImpl implements SqlService {
             throw new RuntimeException("Ошибка при создании файла");
         }
 
-        System.out.println(sb);
+        System.out.println(sql);
     }
 
-    private Resource returnFile(StringBuilder sb) {
-        return new ByteArrayResource(sb.toString().getBytes(StandardCharsets.UTF_8));
+    private Resource returnFile(String sql) {
+        return new ByteArrayResource(sql.getBytes(StandardCharsets.UTF_8));
     }
 
     private void addValuesFromSb(List<String> values, StringBuilder sb) {
@@ -119,6 +120,7 @@ public class SqlServiceImpl implements SqlService {
             sb.append(value, 0, value.length() - 2);
 
         }
+        sb.append(SEMICOLON);
     }
 
     //значения для строк
@@ -126,7 +128,7 @@ public class SqlServiceImpl implements SqlService {
         var sorted = objects.stream().sorted(Comparator.comparing(Map::size, Comparator.reverseOrder())).toList();
         int randomNameCount = sorted.stream().filter(this::containRandomName).mapToInt(e -> 1).sum();
         List<FakeName> fakeNames = randomNameCount != 0
-                ? randomService.getFakeNames(randomNameCount)
+                ? dataRandomIntegrationService.getFakeNames(randomNameCount)
                 : new ArrayList<>();
         List<String> values = new ArrayList<>();
         for (int i = 0, j = 0; i < objects.size(); i++) {
@@ -185,7 +187,7 @@ public class SqlServiceImpl implements SqlService {
                     ? entry.getValue() + "::" + substringBetween(entry.getValue(), TYPE_NAME, OUT_BRACKET)
                     : toVarchar(entry.getValue()) + "::" + substringBetween(entry.getValue(), TYPE_NAME, SEMICOLON);
         }
-
+        //TODO Вынести подзапросы в переменные
         if (entry.getKey().contains(FKEY)) {
             boolean searchIsNumber = entry.getKey().contains(SEARCH_IS_NUMBER);
             var reference = substringBetween(entry.getKey(), REFERENCE_COLUMN, SEMICOLON);

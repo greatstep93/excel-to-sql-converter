@@ -14,12 +14,12 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
-import ru.greatstep.exceltosqlconverter.service.RandomService;
+import ru.greatstep.exceltosqlconverter.service.DataRandomIntegrationService;
 import ru.greatstep.exceltosqlconverter.utils.WebClientHelper;
 
 @Service
 @RequiredArgsConstructor
-public class RandomServiceImpl implements RandomService {
+public class DataRandomIntegrationServiceImpl implements DataRandomIntegrationService {
 
     private final WebClientHelper webClientHelper;
     private final ObjectMapper objectMapper;

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="author" content="AdminKit">
+
+  <link rel="shortcut icon" href="icon-48x48.png"/>
+
+  <title>GreatStep DevPortal</title>
+
+  <link href="css/app.css" rel="stylesheet">
+  <link href="css/input-file.css" rel="stylesheet">
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      <nav class="navbar navbar-expand-lg navbar-light bg-light navbar-dark bg-dark static-top">
+        <h1 style="color: #e3e4e8">Excel to SQL Convertor</h1>
+      </nav>
+    </div>
+  </div>
+  <div class="row" style="margin-top: 100px">
+    <div class="col-md-4">
+
+    </div>
+    <div class="col-md-4">
+      <div class="container">
+        <h2>File Upload & Image Preview</h2>
+        <p class="lead">No Plugins <b>Just Javascript</b></p>
+
+        <!-- Upload  -->
+        <form id="file-upload-form" class="uploader" action="/saveFile">
+          <input id="file-upload" type="file" name="fileUpload"/>
+
+          <label for="file-upload" id="file-drag">
+            <img id="file-image" src="#" alt="Preview" class="hidden">
+            <div id="start">
+              <i class="fa fa-download" aria-hidden="true"></i>
+              <div>Select a file or drag here</div>
+              <div id="notimage" class="hidden">Please select an image</div>
+              <span id="file-upload-btn" class="btn btn-primary">Select a file</span>
+            </div>
+            <div id="response" class="hidden">
+              <div id="messages"></div>
+              <progress class="progress" id="file-progress" value="0">
+                <span>0</span>%
+              </progress>
+            </div>
+          </label>
+        </form>
+
+      </div>
+      <div class="col-md-4">
+        <form method="post" enctype="multipart/form-data" action="/saveFile">
+          <div>
+            <label for="file">Choose file to upload</label>
+            <input type="file" id="file" name="file" multiple/>
+          </div>
+          <div>
+            <button>Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/input-file.js"></script>
+</body>
+</html>

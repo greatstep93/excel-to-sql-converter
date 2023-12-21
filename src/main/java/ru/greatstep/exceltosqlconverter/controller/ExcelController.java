@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import ru.greatstep.exceltosqlconverter.models.FakeName;
 import ru.greatstep.exceltosqlconverter.service.ExcelService;
-import ru.greatstep.exceltosqlconverter.service.RandomService;
+import ru.greatstep.exceltosqlconverter.service.DataRandomIntegrationService;
 
 @RestController
 @RequiredArgsConstructor
 public class ExcelController {
 
     private final ExcelService excelService;
-    private final RandomService randomNamesService;
+    private final DataRandomIntegrationService randomNamesService;
 
     @PostMapping(value = "/saveFile", consumes = {"multipart/form-data"})
     public JsonNode saveFile(@RequestParam("file") MultipartFile file) {
@@ -38,6 +38,12 @@ public class ExcelController {
         var result = randomNamesService.getFakeNames(count);
         System.out.println(result.stream().distinct().toList().size());
         return result;
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        System.out.println("test");
+        return "ok";
     }
 
 }

@@ -24,6 +24,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import ru.greatstep.exceltosqlconverter.exception.FormatsNotFoundException;
+import ru.greatstep.exceltosqlconverter.models.ExcelContext;
 import ru.greatstep.exceltosqlconverter.service.ExcelService;
 import ru.greatstep.exceltosqlconverter.service.SqlService;
 
@@ -48,10 +49,13 @@ public class ExcelServiceImpl implements ExcelService {
     //Sheet - Лист
     //Row - строка листа
     @SneakyThrows({IOException.class, NumberFormatException.class})
-    private List<Map<String, String>> sheetProcess(MultipartFile multipartFile) {
+    private ExcelContext sheetProcess(MultipartFile multipartFile) {
 
         try (InputStream file = multipartFile.getInputStream(); ReadableWorkbook wb = new ReadableWorkbook(file)) {
-            return writeRows(wb.getFirstSheet(), getHeaderRow(wb.getFirstSheet()));
+            return ExcelContext.builder()
+                    .rows(writeRows(wb.getFirstSheet(), getHeaderRow(wb.getFirstSheet())))
+                    .formats(getFormats(wb.getSheets().toList()))
+                    .build();
         }
 
     }
@@ -97,11 +101,26 @@ public class ExcelServiceImpl implements ExcelService {
                 .findFirst().orElse(null);
     }
 
+    @SneakyThrows
+    private Map<String, String> getFormats(List<Sheet> sheets) {
+        var formatSheet = getFormatsSheet(sheets);
+        return formatSheet != null
+                ? formatSheet.read().stream()
+                .filter(row -> row.getRowNum() > 1)
+                .collect(Collectors.toMap(
+                        row -> row.getCellText(0),
+                        row -> row.getCellText(1),
+                        (key1, key2) -> key2,
+                        LinkedHashMap::new
+                ))
+                : null;
+    }
+
     private Sheet getFormatsSheet(List<Sheet> sheets) {
         return sheets.stream()
                 .filter(sheet -> sheet.getName().equals("formats"))
                 .findFirst()
-                .orElseThrow(() -> new FormatsNotFoundException("Не найден лист с форматами"));
+                .orElse(null);
     }
 
 }

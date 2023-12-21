@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 class ExcelToSqlConverterApplicationTests {
 
     @Test
-    void contextLoads() {
+    void When_ContextLoads_Expect_Success() {
     }
 
 }

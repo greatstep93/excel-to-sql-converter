@@ -43,6 +43,24 @@ public class Constants {
 
     public static class SqlPatterns {
 
+        public static final String DO_END_TEMPLATE = """
+                        DO
+                        $$
+                            BEGIN
+                            %s
+                            END
+                        $$
+                """;
+        public static final String DO_END_FROM_FKEY_TEMPLATE = """
+                        DO
+                        $$
+                            DECLARE
+                            %s
+                            BEGIN
+                            %s
+                            END
+                        $$
+                """;
         public static final String INSERT_PATTERN = "INSERT INTO %s ( %s )\nVALUES\n";
         public static final String VALUE_PATTERN = "(%s),\n";
         public static final String SUB_SELECT_TEMPLATE = "(SELECT %s FROM %s WHERE %s = '%s')";

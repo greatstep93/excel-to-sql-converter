@@ -32,7 +32,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import ru.greatstep.exceltosqlconverter.service.RandomService;
+import ru.greatstep.exceltosqlconverter.service.DataRandomIntegrationService;
 
 @SpringBootTest
 @DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
@@ -42,7 +42,7 @@ class ExcelControllerTest {
     private WebApplicationContext wac;
     public static MockWebServer mockDataRandom;
     @Autowired
-    private RandomService randomService;
+    private DataRandomIntegrationService dataRandomIntegrationService;
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
@@ -53,7 +53,7 @@ class ExcelControllerTest {
         mockDataRandom = new MockWebServer();
         mockDataRandom.start();
         String baseUrl = String.format("http://localhost:%s", mockDataRandom.getPort());
-        ReflectionTestUtils.setField(randomService, "host", baseUrl);
+        ReflectionTestUtils.setField(dataRandomIntegrationService, "host", baseUrl);
     }
 
     @AfterEach
