@@ -1,6 +1,7 @@
 package ru.greatstep.exceltosqlconverter.service.impl;
 
 import static java.lang.String.format;
+import static java.lang.String.join;
 import static java.time.LocalDate.parse;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static org.apache.commons.lang3.StringUtils.substringAfter;
@@ -24,6 +25,8 @@ import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RAN
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FULL_NAME;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_LAST_NAME;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_MIDDLE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.CREATE_VARIABLE_PATTERN;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.DO_DECLARE_END_TEMPLATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.DO_END_TEMPLATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.INSERT_PATTERN;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.SUB_SELECT_NUMBER_TEMPLATE;
@@ -38,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -81,29 +85,68 @@ public class SqlServiceImpl implements SqlService {
         var objects = context.getRows();
         StringBuilder sb = new StringBuilder();
         var insertColumnNames = getInsertColumnNames(objects);
-
+        var declares = generateDeclare(objects);
         checkNullValuesFromColumns(objects, insertColumnNames);
-        sb.append(format(INSERT_PATTERN, getTableName(multipartFile), String.join(", ", insertColumnNames)));
-        addValuesFromSb(getValues(objects), sb);
-        return format(DO_END_TEMPLATE, sb);
+        sb.append(format(INSERT_PATTERN, getTableName(multipartFile), join(", ", insertColumnNames)));
+        addValuesFromSb(getValues(objects, declares), sb);
+        return declares.isEmpty()
+                ? format(DO_END_TEMPLATE, sb)
+                : format(DO_DECLARE_END_TEMPLATE, join("\n", declares), sb);
     }
 
-    @SneakyThrows(IOException.class)
-    private void saveFile(String sql) {
-        String filePostfix = LocalDateTime.now().format(ofPattern("yyyy-MM-dd'T'HH_mm_ss"));
-        File file = new File("src/main/resources/sql/test_" + filePostfix + ".sql");
-        var success = file.createNewFile();
-        if (success) {
-            try (var fos = new FileOutputStream(file, false)) {
-                fos.write(sql.getBytes());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+    private List<String> generateDeclare(List<Map<String, String>> objects) {
+        var isNeedDeclare = objects.stream().anyMatch(m -> m.keySet().stream().anyMatch(k -> k.contains(FKEY)));
+        if (isNeedDeclare) {
+            var declares = objects.stream()
+                    .map(map -> {
+                        var entrySet = map.entrySet().stream().filter(entry -> entry.getKey().contains(FKEY)).toList();
+                        Set<String> variables = new HashSet<>();
+                        for (Map.Entry<String, String> v : entrySet) {
+                            variables.add(format(CREATE_VARIABLE_PATTERN, v.getValue(), generateFromFkey(v)));
+                        }
+                        return variables;
+                    })
+                    .flatMap(Set::stream)
+                    .distinct()
+                    .toList();
+            System.out.println();
+            return declares;
         } else {
-            throw new RuntimeException("Ошибка при создании файла");
+            return List.of();
         }
+    }
 
-        System.out.println(sql);
+    private Set<String> getInsertColumnNames(List<Map<String, String>> objects) {
+        var insertColumnNames = objects.stream()
+                .max(Comparator.comparing(Map::size))
+                .map(Map::keySet)
+                .orElse(null);
+        if (Objects.isNull(insertColumnNames)) {
+            throw new RuntimeException("Empty column names");
+        }
+        return insertColumnNames.stream()
+                .map(c -> c.contains(IN_BRACKET) ? StringUtils.substringBefore(c, IN_BRACKET) : c)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    //значения для строк
+    private List<String> getValues(List<Map<String, String>> objects, List<String> declares) {
+        var sorted = objects.stream().sorted(Comparator.comparing(Map::size, Comparator.reverseOrder())).toList();
+        int randomNameCount = sorted.stream().filter(this::containRandomName).mapToInt(e -> 1).sum();
+        List<FakeName> fakeNames = randomNameCount != 0
+                ? dataRandomIntegrationService.getFakeNames(randomNameCount)
+                : new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        for (int i = 0, j = 0; i < objects.size(); i++) {
+            if (containRandomName(sorted.get(i))) {
+                values.add(generateValues(sorted.get(i), fakeNames.get(j), declares));
+                j++;
+            } else {
+                values.add(generateValues(sorted.get(i), null, declares));
+            }
+
+        }
+        return values;
     }
 
     private Resource returnFile(String sql) {
@@ -123,40 +166,20 @@ public class SqlServiceImpl implements SqlService {
         sb.append(SEMICOLON);
     }
 
-    //значения для строк
-    private List<String> getValues(List<Map<String, String>> objects) {
-        var sorted = objects.stream().sorted(Comparator.comparing(Map::size, Comparator.reverseOrder())).toList();
-        int randomNameCount = sorted.stream().filter(this::containRandomName).mapToInt(e -> 1).sum();
-        List<FakeName> fakeNames = randomNameCount != 0
-                ? dataRandomIntegrationService.getFakeNames(randomNameCount)
-                : new ArrayList<>();
-        List<String> values = new ArrayList<>();
-        for (int i = 0, j = 0; i < objects.size(); i++) {
-            if (containRandomName(sorted.get(i))) {
-                values.add(generateValues(sorted.get(i), fakeNames.get(j)));
-                j++;
-            } else {
-                values.add(generateValues(sorted.get(i), null));
-            }
-
-        }
-        return values;
-    }
-
     private boolean containRandomName(Map<String, String> map) {
         return map.containsValue(RANDOM_FULL_NAME) || map.containsValue(RANDOM_FIRST_NAME)
                 || map.containsValue(RANDOM_LAST_NAME) || map.containsValue(RANDOM_MIDDLE_NAME);
     }
 
-    private String generateValues(Map<String, String> map, FakeName fakeName) {
+    private String generateValues(Map<String, String> map, FakeName fakeName, List<String> declares) {
         quoteChecker(map);
         var resultValues = map.entrySet().stream()
-                .map(entry -> generateValue(entry, fakeName))
+                .map(entry -> generateValue(entry, fakeName, declares))
                 .toList();
-        return format(VALUE_PATTERN, String.join(", ", resultValues));
+        return format(VALUE_PATTERN, join(", ", resultValues));
     }
 
-    private String generateValue(Map.Entry<String, String> entry, FakeName fakeName) {
+    private String generateValue(Map.Entry<String, String> entry, FakeName fakeName, List<String> declares) {
         if (entry.getValue().equals("null")) {
             return null;
         }
@@ -169,10 +192,10 @@ public class SqlServiceImpl implements SqlService {
             return generateVarcharFake(entry, fakeName);
         }
 
-        return generateFromKeys(entry);
+        return generateFromKeys(entry, declares);
     }
 
-    private String generateFromKeys(Map.Entry<String, String> entry) {
+    private String generateFromKeys(Map.Entry<String, String> entry, List<String> declares) {
         if (entry.getKey().endsWith(DATE)) {
             return toVarchar(parse(entry.getValue(), ofPattern(DATE_FORMAT)).toString());
         }
@@ -189,21 +212,33 @@ public class SqlServiceImpl implements SqlService {
         }
         //TODO Вынести подзапросы в переменные
         if (entry.getKey().contains(FKEY)) {
-            boolean searchIsNumber = entry.getKey().contains(SEARCH_IS_NUMBER);
-            var reference = substringBetween(entry.getKey(), REFERENCE_COLUMN, SEMICOLON);
-            var schema = substringBefore(reference, POINT);
-            var table = substringBetween(reference, schema + POINT, POINT);
-            var schemaTable = schemaTable(schema, table);
-            var column = substringAfter(reference, table + POINT);
-            var search = searchIsNumber
-                    ? substringBetween(entry.getKey(), SEARCH_COLUMN, SEMICOLON)
-                    : substringBetween(entry.getKey(), SEARCH_COLUMN, OUT_BRACKET);
-
-            return searchIsNumber
-                    ? format(SUB_SELECT_NUMBER_TEMPLATE, column, schemaTable, search, entry.getValue())
-                    : format(SUB_SELECT_TEMPLATE, column, schemaTable, search, entry.getValue());
+            return generateFromDeclares(entry, declares);
         }
         return toVarchar(entry.getValue());
+    }
+
+    private String generateFromFkey(Map.Entry<String, String> entry) {
+        boolean searchIsNumber = entry.getKey().contains(SEARCH_IS_NUMBER);
+        var reference = substringBetween(entry.getKey(), REFERENCE_COLUMN, SEMICOLON);
+        var schema = substringBefore(reference, POINT);
+        var table = substringBetween(reference, schema + POINT, POINT);
+        var schemaTable = schemaTable(schema, table);
+        var column = substringAfter(reference, table + POINT);
+        var search = searchIsNumber
+                ? substringBetween(entry.getKey(), SEARCH_COLUMN, SEMICOLON)
+                : substringBetween(entry.getKey(), SEARCH_COLUMN, OUT_BRACKET);
+
+        return searchIsNumber
+                ? format(SUB_SELECT_NUMBER_TEMPLATE, column, schemaTable, search, entry.getValue())
+                : format(SUB_SELECT_TEMPLATE, column, schemaTable, search, entry.getValue());
+
+    }
+
+    private String generateFromDeclares(Map.Entry<String, String> entry, List<String> declares) {
+        return declares.stream()
+                .anyMatch(d -> substringBefore(d, " bigint").equals(entry.getValue()))
+                ? entry.getValue()
+                : null;
     }
 
     private String generateVarcharFake(Map.Entry<String, String> entry, FakeName fakeName) {
@@ -232,19 +267,6 @@ public class SqlServiceImpl implements SqlService {
         });
     }
 
-    private Set<String> getInsertColumnNames(List<Map<String, String>> objects) {
-        var insertColumnNames = objects.stream()
-                .max(Comparator.comparing(Map::size))
-                .map(Map::keySet)
-                .orElse(null);
-        if (Objects.isNull(insertColumnNames)) {
-            throw new RuntimeException("Empty column names");
-        }
-        return insertColumnNames.stream()
-                .map(c -> c.contains(IN_BRACKET) ? StringUtils.substringBefore(c, IN_BRACKET) : c)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
     private String getTableName(MultipartFile multipartFile) throws IOException {
         Sheet sheet;
         try (InputStream file = multipartFile.getInputStream();
@@ -258,6 +280,24 @@ public class SqlServiceImpl implements SqlService {
 
     private void quoteChecker(Map<String, String> map) {
         map.replaceAll((k, v) -> v.contains("'") ? v.replaceAll("'", "''") : v);
+    }
+
+    @SneakyThrows(IOException.class)
+    private void saveFile(String sql) {
+        String filePostfix = LocalDateTime.now().format(ofPattern("yyyy-MM-dd'T'HH_mm_ss"));
+        File file = new File("src/main/resources/sql/test_" + filePostfix + ".sql");
+        var success = file.createNewFile();
+        if (success) {
+            try (var fos = new FileOutputStream(file, false)) {
+                fos.write(sql.getBytes());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            throw new RuntimeException("Ошибка при создании файла");
+        }
+
+        System.out.println(sql);
     }
 
 }

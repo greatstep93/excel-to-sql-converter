@@ -51,7 +51,7 @@ public class Constants {
                             END
                         $$
                 """;
-        public static final String DO_END_FROM_FKEY_TEMPLATE = """
+        public static final String DO_DECLARE_END_TEMPLATE = """
                         DO
                         $$
                             DECLARE
@@ -61,6 +61,7 @@ public class Constants {
                             END
                         $$
                 """;
+        public static final String CREATE_VARIABLE_PATTERN = "%s bigint = %s;";
         public static final String INSERT_PATTERN = "INSERT INTO %s ( %s )\nVALUES\n";
         public static final String VALUE_PATTERN = "(%s),\n";
         public static final String SUB_SELECT_TEMPLATE = "(SELECT %s FROM %s WHERE %s = '%s')";
