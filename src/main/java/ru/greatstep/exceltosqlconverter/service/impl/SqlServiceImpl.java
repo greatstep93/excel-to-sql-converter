@@ -7,6 +7,7 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 import static org.apache.commons.lang3.StringUtils.substringAfter;
 import static org.apache.commons.lang3.StringUtils.substringBefore;
 import static org.apache.commons.lang3.StringUtils.substringBetween;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.DATA_RANDOM_DATE_FORMAT;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.DATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.ENUM;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.FKEY;
@@ -21,10 +22,24 @@ import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConst
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.SEMICOLON;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.TIMESTAMP;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.HeaderColumnConstants.TYPE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_APARTMENT;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_CITY;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_COUNTRY;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_DATE_OF_BIRTH;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_EMAIL;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FIRST_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FULL_ADDRESS;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_FULL_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_HOUSE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_LAST_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_LOGIN;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_MIDDLE_NAME;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_PASSPORT;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_PASSPORT_NUMBER;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_PASSPORT_SERIAL;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_PHONE;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_REGION;
+import static ru.greatstep.exceltosqlconverter.utils.Constants.SpecialValues.RANDOM_STREET;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.CREATE_VARIABLE_PATTERN;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.DO_DECLARE_END_TEMPLATE;
 import static ru.greatstep.exceltosqlconverter.utils.Constants.SqlPatterns.DO_END_TEMPLATE;
@@ -188,11 +203,45 @@ public class SqlServiceImpl implements SqlService {
             return entry.getValue();
         }
 
-        if (SpecialValues.getAll().contains(entry.getValue())) {
+        if (SpecialValues.getAllVarchar().contains(entry.getValue())) {
             return generateVarcharFake(entry, fakeName);
         }
 
         return generateFromKeys(entry, declares);
+    }
+
+    private String generateVarcharFake(Map.Entry<String, String> entry, FakeName fakeName) {
+        return switch (entry.getValue()) {
+            case RANDOM_FULL_NAME -> toVarchar(fakeName.fullName());
+            case RANDOM_FIRST_NAME -> toVarchar(fakeName.firstName());
+            case RANDOM_MIDDLE_NAME -> toVarchar(fakeName.fatherName());
+            case RANDOM_LAST_NAME -> toVarchar(fakeName.lastName());
+            case RANDOM_PHONE -> toVarchar(fakeName.phone());
+            case RANDOM_LOGIN -> toVarchar(fakeName.login());
+            case RANDOM_EMAIL -> toVarchar(fakeName.email());
+            case RANDOM_DATE_OF_BIRTH -> entry.getKey().contains(DATE)
+                    ? toVarchar(parse(fakeName.dateOfBirth(), ofPattern(DATA_RANDOM_DATE_FORMAT)).toString())
+                    : toVarchar(fakeName.dateOfBirth());
+            case RANDOM_PASSPORT -> toVarchar(fakeName.passport());
+            case RANDOM_PASSPORT_NUMBER -> entry.getKey().contains(NUMBER)
+                    ? fakeName.passport().split(" ")[1]
+                    : toVarchar(fakeName.passport().split(" ")[1]);
+            case RANDOM_PASSPORT_SERIAL -> entry.getKey().contains(NUMBER)
+                    ? fakeName.passport().split(" ")[0]
+                    : toVarchar(fakeName.passport().split(" ")[0]);
+            case RANDOM_FULL_ADDRESS -> toVarchar(fakeName.address());
+            case RANDOM_COUNTRY -> toVarchar(fakeName.country());
+            case RANDOM_REGION -> toVarchar(fakeName.region());
+            case RANDOM_CITY -> toVarchar(fakeName.city());
+            case RANDOM_STREET -> toVarchar(fakeName.street());
+            case RANDOM_HOUSE -> entry.getKey().contains(NUMBER)
+                    ? fakeName.house()
+                    : toVarchar(fakeName.house());
+            case RANDOM_APARTMENT -> entry.getKey().contains(NUMBER)
+                    ? fakeName.apartment()
+                    : toVarchar(fakeName.apartment());
+            default -> "unknown random key";
+        };
     }
 
     private String generateFromKeys(Map.Entry<String, String> entry, List<String> declares) {
@@ -239,16 +288,6 @@ public class SqlServiceImpl implements SqlService {
                 .anyMatch(d -> substringBefore(d, " bigint").equals(entry.getValue()))
                 ? entry.getValue()
                 : null;
-    }
-
-    private String generateVarcharFake(Map.Entry<String, String> entry, FakeName fakeName) {
-        return switch (entry.getValue()) {
-            case RANDOM_FULL_NAME -> toVarchar(fakeName.fullName());
-            case RANDOM_FIRST_NAME -> toVarchar(fakeName.firstName());
-            case RANDOM_MIDDLE_NAME -> toVarchar(fakeName.fatherName());
-            case RANDOM_LAST_NAME -> toVarchar(fakeName.lastName());
-            default -> "unknown random key";
-        };
     }
 
     private String schemaTable(String schema, String table) {

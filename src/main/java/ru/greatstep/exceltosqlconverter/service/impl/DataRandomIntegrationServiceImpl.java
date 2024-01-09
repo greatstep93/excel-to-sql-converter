@@ -23,7 +23,8 @@ public class DataRandomIntegrationServiceImpl implements DataRandomIntegrationSe
 
     private final WebClientHelper webClientHelper;
     private final ObjectMapper objectMapper;
-    private static final List<String> PARAMS = List.of("FirstName", "LastName", "FatherName");
+    private static final List<String> PARAMS = List.of("FirstName", "LastName", "FatherName", "Phone", "Login", "Email",
+            "DateOfBirth", "PasportNum", "Address", "Country", "Region", "City", "Street", "House", "Apartment");
 
     @Value("${external-api.random-data-tools}")
     private String host;

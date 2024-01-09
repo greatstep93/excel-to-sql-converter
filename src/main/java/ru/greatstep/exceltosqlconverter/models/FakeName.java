@@ -8,7 +8,20 @@ public record FakeName(
         String fullName,
         String firstName,
         String fatherName,
-        String lastName
+        String lastName,
+        String phone,
+        String login,
+        String email,
+        String dateOfBirth,
+        String passport,
+        String address,
+        String country,
+        String region,
+        String city,
+        String street,
+        String house,
+        String apartment
+
 ) {
 
 }

@@ -7,6 +7,7 @@ import lombok.experimental.UtilityClass;
 public class Constants {
 
     public static final String ERROR_DELIMITER = " and ";
+    public static final String DATA_RANDOM_DATE_FORMAT = "dd-MM-yyyy";
 
     public static class HeaderColumnConstants {
 
@@ -90,12 +91,26 @@ public class Constants {
         public static final String RANDOM_HOUSE = "random_house";
         public static final String RANDOM_APARTMENT = "random_apartment";
 
-        public static List<String> getAll() {
+        public static List<String> getAllVarchar() {
             return List.of(
                     RANDOM_FULL_NAME,
                     RANDOM_FIRST_NAME,
                     RANDOM_MIDDLE_NAME,
-                    RANDOM_LAST_NAME
+                    RANDOM_LAST_NAME,
+                    RANDOM_PHONE,
+                    RANDOM_LOGIN,
+                    RANDOM_EMAIL,
+                    RANDOM_DATE_OF_BIRTH,
+                    RANDOM_PASSPORT,
+                    RANDOM_PASSPORT_NUMBER,
+                    RANDOM_PASSPORT_SERIAL,
+                    RANDOM_FULL_ADDRESS,
+                    RANDOM_COUNTRY,
+                    RANDOM_REGION,
+                    RANDOM_CITY,
+                    RANDOM_STREET,
+                    RANDOM_HOUSE,
+                    RANDOM_APARTMENT
             );
         }
 
